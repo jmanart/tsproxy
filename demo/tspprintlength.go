@@ -3,21 +3,30 @@
 package main
 
 import (
+	"flag"
 	"fmt"
-	"os"
 	"strconv"
-	"tsproxy"
+
+	"github.com/jmanart/tsproxy"
 )
 
+func usage() {
+	fmt.Println("Usage: tspprintlength <Listening Port> <Outgoing Address>")
+	flag.PrintDefaults()
+}
+
 func main() {
-	if len(os.Args) < 2 {
-		panic("Invalid number of arguments")
+	flag.Usage = usage
+	flag.Parse()
+	if flag.NArg() != 2 {
+		flag.Usage()
+		return
 	}
-	inAdd, err := strconv.Atoi(os.Args[1])
+	inAdd, err := strconv.Atoi(flag.Arg(0))
 	if err != nil {
-		panic("First argument must be port number")
+		panic("First Argument must be a number")
 	}
-	outAdd := os.Args[2]
+	outAdd := flag.Arg(1)
 
 	filterList := []tsproxy.Filter{}
 	filterList = append(filterList, tsproxy.LengthPrintFilter{})
