@@ -53,51 +53,51 @@ func (tsp TSProxy) handleConnection(conn net.Conn) {
 
 	wg.Add(6)
 
-	in_chan := make(chan []byte)
-	resend_chan := make(chan []byte)
-	back_chan := make(chan []byte)
-	out_chan := make(chan []byte)
+	inChan := make(chan []byte)
+	resendChan := make(chan []byte)
+	backChan := make(chan []byte)
+	outChan := make(chan []byte)
 
 	fBufRdr := bufio.NewReader(conn)
 	fBufWrt := bufio.NewWriter(conn)
 	frontBuf := bufio.NewReadWriter(fBufRdr, fBufWrt)
 
 	// Connect to endpoint
-	rep_conn, err := net.Dial("tcp", tsp.OutAddress)
+	repConn, err := net.Dial("tcp", tsp.OutAddress)
 	if err != nil {
 		return
 	}
-	defer rep_conn.Close()
+	defer repConn.Close()
 
 	// Define ReadWriter for endpoint
-	bBufRdr := bufio.NewReader(rep_conn)
-	bBufWrt := bufio.NewWriter(rep_conn)
+	bBufRdr := bufio.NewReader(repConn)
+	bBufWrt := bufio.NewWriter(repConn)
 	backBuf := bufio.NewReadWriter(bBufRdr, bBufWrt)
 
 	// PROXY
 	go func() {
 		for {
-			in, ok := <-in_chan
+			in, ok := <-inChan
 			if !ok {
 				break
 			}
 			for _, f := range tsp.FilterList {
 				f.FilterInput(in)
 			}
-			resend_chan <- in
+			resendChan <- in
 		}
 		wg.Done()
 	}()
 	go func() {
 		for {
-			back, ok := <-back_chan
+			back, ok := <-backChan
 			if !ok {
 				break
 			}
 			for _, f := range tsp.FilterList {
 				f.FilterOutput(back)
 			}
-			out_chan <- back
+			outChan <- back
 		}
 		wg.Done()
 	}()
@@ -109,11 +109,11 @@ func (tsp TSProxy) handleConnection(conn net.Conn) {
 			if err != nil {
 				break
 			}
-			in_chan <- res[:read]
+			inChan <- res[:read]
 		}
-		close(in_chan)
-		close(out_chan)
-		rep_conn.Close()
+		close(inChan)
+		close(outChan)
+		repConn.Close()
 		wg.Done()
 	}()
 	go func() {
@@ -123,16 +123,16 @@ func (tsp TSProxy) handleConnection(conn net.Conn) {
 			if err != nil {
 				break
 			}
-			back_chan <- res[:read]
+			backChan <- res[:read]
 		}
-		close(back_chan)
-		close(resend_chan)
+		close(backChan)
+		close(resendChan)
 		conn.Close()
 		wg.Done()
 	}()
 	go func() {
 		for {
-			rep, ok := <-resend_chan
+			rep, ok := <-resendChan
 			if !ok {
 				break
 			}
@@ -149,7 +149,7 @@ func (tsp TSProxy) handleConnection(conn net.Conn) {
 	}()
 	go func() {
 		for {
-			rep, ok := <-out_chan
+			rep, ok := <-outChan
 			if !ok {
 				break
 			}
