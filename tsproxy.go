@@ -19,18 +19,27 @@ type Filter interface {
 	FilterOutput(message []byte)
 }
 
-// TSProxy implements a simple proxy that listens for connections on InPort
-// and creates outgoing connections to OutAddress while passing all through
-// message through FilterList
+// TSProxy implements a simple proxy that listens for connections on inPort
+// and creates outgoing connections to outAddress while passing all through
+// message through filterList
 type TSProxy struct {
-	InPort     int
-	OutAddress string
-	FilterList []Filter
+	inPort     int
+	outAddress string
+	filterList []Filter
+}
+
+// NewTSProxy returns a new TSProxy initialized with the given arguments
+func NewTSProxy(inPort int, outAddress string, filterList []Filter) *TSProxy {
+	tsp := new(TSProxy)
+	tsp.inPort = inPort
+	tsp.outAddress = outAddress
+	tsp.filterList = filterList
+	return tsp
 }
 
 // Run runs in an infinite loop accepting connections
 func (tsp TSProxy) Run() error {
-	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", tsp.InPort))
+	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", tsp.inPort))
 	if err != nil {
 		return err
 	}
@@ -63,7 +72,7 @@ func (tsp TSProxy) handleConnection(conn net.Conn) {
 	frontBuf := bufio.NewReadWriter(fBufRdr, fBufWrt)
 
 	// Connect to endpoint
-	repConn, err := net.Dial("tcp", tsp.OutAddress)
+	repConn, err := net.Dial("tcp", tsp.outAddress)
 	if err != nil {
 		return
 	}
@@ -81,7 +90,7 @@ func (tsp TSProxy) handleConnection(conn net.Conn) {
 			if !ok {
 				break
 			}
-			for _, f := range tsp.FilterList {
+			for _, f := range tsp.filterList {
 				f.FilterInput(in)
 			}
 			resendChan <- in
@@ -94,7 +103,7 @@ func (tsp TSProxy) handleConnection(conn net.Conn) {
 			if !ok {
 				break
 			}
-			for _, f := range tsp.FilterList {
+			for _, f := range tsp.filterList {
 				f.FilterOutput(back)
 			}
 			outChan <- back

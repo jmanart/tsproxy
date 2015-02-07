@@ -31,11 +31,7 @@ func main() {
 	filterList := []tsproxy.Filter{}
 	filterList = append(filterList, tsproxy.LengthPrintFilter{})
 
-	tsp := tsproxy.TSProxy{
-		InPort:     inAdd,
-		OutAddress: outAdd,
-		FilterList: filterList,
-	}
+	tsp := tsproxy.NewTSProxy(inAdd, outAdd, filterList)
 	err = tsp.Run()
 	if err != nil {
 		fmt.Println(err.Error())
